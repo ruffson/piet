@@ -1,7 +1,6 @@
 //! Traits for fonts and text handling.
 
 use std::ops::{Range, RangeBounds};
-use std::sync::Arc;
 
 use crate::kurbo::{Point, Rect, Size};
 use crate::{Color, Error, FontFamily, FontStyle, FontWeight};
@@ -104,7 +103,34 @@ pub trait Text: Clone {
     /// they can pass a `&str`, which the layout will retain.
     ///
     /// [`TextLayoutBuilder`]: trait.TextLayoutBuilder.html
-    fn new_text_layout(&mut self, text: impl Into<Arc<str>>) -> Self::TextLayoutBuilder;
+    fn new_text_layout(&mut self, text: impl TextStorage) -> Self::TextLayoutBuilder;
+}
+
+/// A type that stores text.
+///
+/// This allows the client to more completely control how text is stored.
+/// If you do not care about this, implementations are provided for `String`,
+/// `Arc<str>`, and `Rc<str>`.
+///
+/// This has a `'static` bound because the inner type will be behind a shared
+/// pointer.
+pub trait TextStorage: 'static {
+    /// Return the underlying text as a contiguous buffer.
+    ///
+    /// Types that do not store their text as a contiguous buffer (such as ropes
+    /// or gap buffers) will need to use a wrapper to maintain a separate
+    /// contiguous buffer as required.
+    ///
+    /// In practice, these types should be using a text layout per paragraph, and
+    /// in general a separate buffer will be unnecessary.
+    fn as_str(&self) -> &str;
+}
+
+impl std::ops::Deref for dyn TextStorage {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
 }
 
 /// Attributes that can be applied to text.
@@ -547,3 +573,28 @@ impl Default for TextAlignment {
         TextAlignment::Start
     }
 }
+
+impl TextStorage for std::sync::Arc<str> {
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+
+impl TextStorage for std::rc::Rc<str> {
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+
+impl TextStorage for String {
+    fn as_str(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl TextStorage for &'static str {
+    fn as_str(&self) -> &str {
+        self
+    }
+}
+

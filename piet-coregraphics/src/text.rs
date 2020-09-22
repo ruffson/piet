@@ -23,7 +23,7 @@ use core_text::{
 
 use piet::kurbo::{Affine, Point, Rect, Size};
 use piet::{
-    util, Error, FontFamily, FontStyle, FontWeight, HitTestPoint, HitTestPosition, LineMetric,
+    util, Error, FontFamily, FontStyle, FontWeight, HitTestPoint, HitTestPosition, LineMetric, TextStorage,
     Text, TextAlignment, TextAttribute, TextLayout, TextLayoutBuilder,
 };
 
@@ -50,7 +50,7 @@ struct TextState {
 
 #[derive(Clone)]
 pub struct CoreGraphicsTextLayout {
-    text: Arc<str>,
+    text: Rc<dyn TextStorage>,
     attr_string: AttributedString,
     framesetter: Framesetter,
     pub(crate) frame: Option<Frame>,
@@ -70,7 +70,7 @@ pub struct CoreGraphicsTextLayout {
 pub struct CoreGraphicsTextLayoutBuilder {
     width: f64,
     alignment: TextAlignment,
-    text: Arc<str>,
+    text: Rc<dyn TextStorage>,
     /// the end bound up to which we have already added attrs to our AttributedString
     last_resolved_pos: usize,
     last_resolved_utf16: usize,
@@ -168,8 +168,8 @@ impl CoreGraphicsTextLayoutBuilder {
     }
 
     fn add_immediately(&mut self, attr: TextAttribute, range: Range<usize>) {
-        let utf16_start = util::count_utf16(&self.text[..range.start]);
-        let utf16_len = util::count_utf16(&self.text[range]);
+        let utf16_start = util::count_utf16(&self.text.as_str()[..range.start]);
+        let utf16_len = util::count_utf16(&self.text.as_str()[range]);
         let range = CFRange::init(utf16_start as isize, utf16_len as isize);
         match attr {
             TextAttribute::ForegroundColor(color) => {
@@ -184,7 +184,7 @@ impl CoreGraphicsTextLayoutBuilder {
         if !self.has_set_default_attrs {
             self.set_default_attrs();
         }
-        self.resolve_up_to(self.text.len());
+        self.resolve_up_to(self.text.as_str().len());
     }
 
     /// Add all font attributes up to a boundary.
@@ -436,7 +436,7 @@ impl Text for CoreGraphicsText {
         self.shared.get_font(family_name)
     }
 
-    fn new_text_layout(&mut self, text: impl Into<Arc<str>>) -> Self::TextLayoutBuilder {
+    fn new_text_layout(&mut self, text: impl TextStorage) -> Self::TextLayoutBuilder {
         CoreGraphicsTextLayoutBuilder::new(text)
     }
 
@@ -467,9 +467,9 @@ impl SharedTextState {
 }
 
 impl CoreGraphicsTextLayoutBuilder {
-    fn new(text: impl Into<Arc<str>>) -> Self {
-        let text = text.into();
-        let attr_string = AttributedString::new(&text);
+    fn new(text: impl TextStorage) -> Self {
+        let text = Rc::new(text);
+        let attr_string = AttributedString::new(text.as_str());
         CoreGraphicsTextLayoutBuilder {
             width: f64::INFINITY,
             alignment: TextAlignment::default(),
@@ -706,7 +706,7 @@ impl TextLayout for CoreGraphicsTextLayout {
 
 impl CoreGraphicsTextLayout {
     fn new(
-        text: Arc<str>,
+        text: Rc<dyn TextStorage>,
         attr_string: AttributedString,
         width_constraint: f64,
         default_baseline: f64,
