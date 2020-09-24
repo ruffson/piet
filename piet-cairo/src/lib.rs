@@ -212,6 +212,7 @@ impl<'a> RenderContext for CairoRenderContext<'a> {
         let cairo_fmt = match format {
             ImageFormat::Rgb | ImageFormat::Grayscale => Format::Rgb24,
             ImageFormat::RgbaSeparate | ImageFormat::RgbaPremul => Format::ARgb32,
+            ImageFormat::GrayScale => Format::A8,
             _ => return Err(Error::NotSupported),
         };
         let width_int = width as i32;
@@ -267,11 +268,9 @@ impl<'a> RenderContext for CairoRenderContext<'a> {
                             data[dst_off + x * 4 + 3] = a;
                         }
                     }
-                    ImageFormat::Grayscale => {
+                    ImageFormat::GrayScale => {
                         for x in 0..width {
-                            data[dst_off + x * 4 + 0] = buf[src_off + x];
-                            data[dst_off + x * 4 + 1] = buf[src_off + x];
-                            data[dst_off + x * 4 + 2] = buf[src_off + x];
+                            data[dst_off + x] = buf[src_off + x];
                         }
                     }
                     _ => return Err(Error::NotSupported),
