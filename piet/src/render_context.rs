@@ -30,7 +30,6 @@ pub enum ImageFormat {
     RgbaSeparate,
     /// 4 bytes per pixel, in RGBA order, with premultiplied alpha.
     RgbaPremul,
-
 }
 
 impl ImageFormat {

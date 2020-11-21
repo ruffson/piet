@@ -18,6 +18,7 @@ pub fn draw(rc: &mut impl RenderContext) -> Result<(), Error> {
             ImageFormat::RgbaSeparate,
             ImageFormat::RgbaPremul,
             ImageFormat::Rgb,
+            ImageFormat::GrayScale,
         ] {
             let image_data = make_image_data(16, 16, format);
             let image = rc.make_image(16, 16, &image_data, format)?;
@@ -28,7 +29,7 @@ pub fn draw(rc: &mut impl RenderContext) -> Result<(), Error> {
     }
     Ok(())
 }
-
+const RGB_TO_GREYSCALE: [f32; 3] = [0.2126, 0.7152, 0.0722];
 fn make_image_data(width: usize, height: usize, format: ImageFormat) -> Vec<u8> {
     let bytes_per_pixel = format.bytes_per_pixel();
     let mut result = vec![0; width * height * bytes_per_pixel];
@@ -64,6 +65,11 @@ fn make_image_data(width: usize, height: usize, format: ImageFormat) -> Vec<u8> 
                     result[ix + 0] = r;
                     result[ix + 1] = g;
                     result[ix + 2] = b;
+                }
+                ImageFormat::GrayScale => {
+                    result[ix + 0] = (RGB_TO_GREYSCALE[0] * r as f32) as u8
+                        + (RGB_TO_GREYSCALE[1] * g as f32) as u8
+                        + (RGB_TO_GREYSCALE[2] * b as f32) as u8;
                 }
             }
         }
