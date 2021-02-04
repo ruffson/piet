@@ -37,7 +37,7 @@ pub enum Brush {
     Radial(cairo::RadialGradient),
 }
 
-pub struct CairoImage(ImageSurface);
+pub struct CairoImage(ImageSurface, ImageFormat);
 
 // we call this with different types of gradient that have `add_color_stop_rgba` fns,
 // and there's no trait for this behaviour so we use a macro. ¯\_(ツ)_/¯
@@ -209,7 +209,8 @@ impl<'a> RenderContext for CairoRenderContext<'a> {
         format: ImageFormat,
     ) -> Result<Self::Image, Error> {
         let cairo_fmt = match format {
-            ImageFormat::Rgb | ImageFormat::Grayscale => Format::Rgb24,
+            ImageFormat::Rgb => Format::Rgb24,
+            ImageFormat::Grayscale => Format::A8,
             ImageFormat::RgbaSeparate | ImageFormat::RgbaPremul => Format::ARgb32,
             _ => return Err(Error::NotSupported),
         };
@@ -220,7 +221,7 @@ impl<'a> RenderContext for CairoRenderContext<'a> {
 
         // early-return if the image has no data in it
         if width_int == 0 || height_int == 0 {
-            return Ok(CairoImage(image));
+            return Ok(CairoImage(image, format));
         }
 
         // Confident no borrow errors because we just created it.
@@ -268,18 +269,15 @@ impl<'a> RenderContext for CairoRenderContext<'a> {
                     }
                     ImageFormat::Grayscale => {
                         for x in 0..width {
-                            data[dst_off + x * 4 + 0] = buf[src_off + x];
-                            data[dst_off + x * 4 + 1] = buf[src_off + x];
-                            data[dst_off + x * 4 + 2] = buf[src_off + x];
+                            data[dst_off + x] = 255 - buf[src_off + x];
                         }
                     }
                     _ => return Err(Error::NotSupported),
                 }
             }
         }
-        Ok(CairoImage(image))
+        Ok(CairoImage(image, format))
     }
-
     #[inline]
     fn draw_image(
         &mut self,
@@ -426,6 +424,7 @@ impl<'a> CairoRenderContext<'a> {
         if src_rect.is_empty() || dst_rect.is_empty() {
             return;
         }
+        // TODO: check if format is grayscale and draw background
 
         let _ = self.with_save(|rc| {
             let surface_pattern = SurfacePattern::create(image);
